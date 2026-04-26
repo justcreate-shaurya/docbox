@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { adminAPI } from "@/lib/api";
-import { formatDate, formatFileSize, getStatusColor } from "@/lib/utils";
+import { formatDate, getStatusColor } from "@/lib/utils";
 import toast from "react-hot-toast";
 import { Trash2, Copy, Check } from "lucide-react";
 
