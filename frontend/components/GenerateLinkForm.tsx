@@ -7,6 +7,7 @@ import { Upload } from "lucide-react";
 import { motion } from "framer-motion";
 
 export default function GenerateLinkForm({ onSuccess }: { onSuccess: () => void }) {
+  const SERVERLESS_SAFE_UPLOAD_LIMIT_BYTES = 4 * 1024 * 1024;
   const [loading, setLoading] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [formData, setFormData] = useState({
@@ -93,7 +94,7 @@ export default function GenerateLinkForm({ onSuccess }: { onSuccess: () => void 
 
       // Vercel request body limits can reject multipart uploads around this size.
       // Prefer direct browser->Supabase upload, then create metadata-only link in backend.
-      try {
+      if (file.size > SERVERLESS_SAFE_UPLOAD_LIMIT_BYTES) {
         const uploaded = await uploadPdfToSupabase(file);
         response = await adminAPI.generateLinkDirect({
           file_name: uploaded.fileName,
@@ -104,15 +105,28 @@ export default function GenerateLinkForm({ onSuccess }: { onSuccess: () => void 
           max_views: formData.max_views,
           expires_at: expiryDate.toISOString(),
         });
-      } catch (directUploadError) {
-        // Fallback to legacy multipart endpoint for local/dev or very small files.
-        const form = new FormData();
-        form.append("file", file);
-        form.append("nda_text", formData.nda_text);
-        form.append("allowed_name", formData.allowed_name);
-        form.append("max_views", formData.max_views.toString());
-        form.append("expires_at", expiryDate.toISOString());
-        response = await adminAPI.generateLink(form);
+      } else {
+        try {
+          const uploaded = await uploadPdfToSupabase(file);
+          response = await adminAPI.generateLinkDirect({
+            file_name: uploaded.fileName,
+            file_path: `supabase://${uploaded.storagePath}`,
+            file_size: uploaded.fileSize,
+            nda_text: formData.nda_text,
+            allowed_name: formData.allowed_name,
+            max_views: formData.max_views,
+            expires_at: expiryDate.toISOString(),
+          });
+        } catch {
+          // Fallback to legacy multipart endpoint only for small files.
+          const form = new FormData();
+          form.append("file", file);
+          form.append("nda_text", formData.nda_text);
+          form.append("allowed_name", formData.allowed_name);
+          form.append("max_views", formData.max_views.toString());
+          form.append("expires_at", expiryDate.toISOString());
+          response = await adminAPI.generateLink(form);
+        }
       }
 
       toast.success("Link generated successfully!");
