@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { adminAPI } from "@/lib/api";
+import { adminAPI, uploadPdfToSupabase } from "@/lib/api";
 import toast from "react-hot-toast";
 import { Upload } from "lucide-react";
 import { motion } from "framer-motion";
@@ -89,14 +89,31 @@ export default function GenerateLinkForm({ onSuccess }: { onSuccess: () => void 
     setLoading(true);
 
     try {
-      const form = new FormData();
-      form.append("file", file);
-      form.append("nda_text", formData.nda_text);
-      form.append("allowed_name", formData.allowed_name);
-      form.append("max_views", formData.max_views.toString());
-      form.append("expires_at", expiryDate.toISOString());
+      let response: any;
 
-      const response = await adminAPI.generateLink(form);
+      // Vercel request body limits can reject multipart uploads around this size.
+      // Prefer direct browser->Supabase upload, then create metadata-only link in backend.
+      try {
+        const uploaded = await uploadPdfToSupabase(file);
+        response = await adminAPI.generateLinkDirect({
+          file_name: uploaded.fileName,
+          file_path: `supabase://${uploaded.storagePath}`,
+          file_size: uploaded.fileSize,
+          nda_text: formData.nda_text,
+          allowed_name: formData.allowed_name,
+          max_views: formData.max_views,
+          expires_at: expiryDate.toISOString(),
+        });
+      } catch (directUploadError) {
+        // Fallback to legacy multipart endpoint for local/dev or very small files.
+        const form = new FormData();
+        form.append("file", file);
+        form.append("nda_text", formData.nda_text);
+        form.append("allowed_name", formData.allowed_name);
+        form.append("max_views", formData.max_views.toString());
+        form.append("expires_at", expiryDate.toISOString());
+        response = await adminAPI.generateLink(form);
+      }
 
       toast.success("Link generated successfully!");
       console.log("Generated link:", response);

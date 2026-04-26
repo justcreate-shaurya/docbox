@@ -66,6 +66,16 @@ class GenerateLinkRequest(BaseModel):
     expires_at: datetime
 
 
+class GenerateLinkDirectRequest(BaseModel):
+    file_name: str
+    file_path: str
+    file_size: int
+    nda_text: str
+    allowed_name: str
+    max_views: int
+    expires_at: datetime
+
+
 class GenerateLinkResponse(BaseModel):
     token: str
     secure_url: str

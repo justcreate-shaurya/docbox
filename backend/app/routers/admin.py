@@ -8,11 +8,50 @@ from app.core.database import get_db
 from app.core.security import generate_secure_token
 from app.core.config import UPLOAD_DIR, ADMIN_USERNAME, ADMIN_PASSWORD, SUPABASE_URL, SUPABASE_KEY, SUPABASE_BUCKET
 from app.models import Document, AccessLink
-from app.schemas.schemas import GenerateLinkRequest, GenerateLinkResponse, AccessLinkResponse
+from app.schemas.schemas import GenerateLinkDirectRequest, GenerateLinkResponse, AccessLinkResponse
 from app.core.security import create_access_token, get_current_admin
 from fastapi.security import OAuth2PasswordRequestForm
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
+
+
+def _create_link_record(
+    db: Session,
+    file_name: str,
+    file_path: str,
+    file_size: int,
+    nda_text: str,
+    allowed_name: str,
+    max_views: int,
+    expires_at_dt: datetime,
+) -> GenerateLinkResponse:
+    document = Document(
+        file_name=file_name,
+        file_path=file_path,
+        file_size=file_size,
+    )
+    db.add(document)
+    db.flush()
+
+    token = generate_secure_token()
+    access_link = AccessLink(
+        token=token,
+        document_id=document.id,
+        nda_text=nda_text,
+        allowed_name=allowed_name,
+        max_views=max_views,
+        expires_at=expires_at_dt,
+    )
+    db.add(access_link)
+    db.commit()
+    db.refresh(access_link)
+
+    secure_url = f"/secure/{token}"
+    return GenerateLinkResponse(
+        token=token,
+        secure_url=secure_url,
+        expires_at=access_link.expires_at,
+    )
 
 
 @router.post("/login")
@@ -69,39 +108,53 @@ async def generate_link(
                 buffer.write(file_contents)
             file_path = local_path
 
-        # Create Document record
-        document = Document(
+        return _create_link_record(
+            db=db,
             file_name=file.filename,
             file_path=file_path,
-            file_size=file_size
-        )
-        db.add(document)
-        db.flush()
-
-        # Generate secure token
-        token = generate_secure_token()
-
-        # Create AccessLink record
-        access_link = AccessLink(
-            token=token,
-            document_id=document.id,
+            file_size=file_size,
             nda_text=nda_text,
             allowed_name=allowed_name,
             max_views=max_views,
-            expires_at=expires_at_dt
-        )
-        db.add(access_link)
-        db.commit()
-        db.refresh(access_link)
-
-        secure_url = f"/secure/{token}"
-
-        return GenerateLinkResponse(
-            token=token,
-            secure_url=secure_url,
-            expires_at=access_link.expires_at
+            expires_at_dt=expires_at_dt,
         )
 
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/generate-link-direct")
+async def generate_link_direct(
+    payload: GenerateLinkDirectRequest,
+    db: Session = Depends(get_db),
+    admin: str = Depends(get_current_admin),
+):
+    """
+    Generate a secure document link using an already-uploaded file path.
+    This avoids large multipart payloads through the API.
+    """
+    try:
+        expires_at_dt = payload.expires_at
+        if isinstance(expires_at_dt, str):
+            expires_at_dt = datetime.fromisoformat(expires_at_dt.replace("Z", "+00:00"))
+
+        if not payload.file_path:
+            raise HTTPException(status_code=400, detail="file_path is required")
+
+        return _create_link_record(
+            db=db,
+            file_name=payload.file_name,
+            file_path=payload.file_path,
+            file_size=payload.file_size,
+            nda_text=payload.nda_text,
+            allowed_name=payload.allowed_name,
+            max_views=payload.max_views,
+            expires_at_dt=expires_at_dt,
+        )
+    except HTTPException:
+        db.rollback()
+        raise
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=400, detail=str(e))
