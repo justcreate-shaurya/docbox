@@ -24,7 +24,9 @@ def _check_and_auto_revoke(link: AccessLink, db: Session) -> bool:
         
     now = datetime.utcnow()
     is_expired = link.expires_at < now
-    is_max_views = link.current_views >= link.max_views
+    # Use strictly greater than so the N-th view is still allowed to fetch the document
+    # but the (N+1)-th session will be blocked.
+    is_max_views = link.current_views > link.max_views
     
     if is_expired or is_max_views:
         # Only delete asset if no other active sibling links
@@ -46,6 +48,7 @@ def _check_and_auto_revoke(link: AccessLink, db: Session) -> bool:
         return True
         
     return False
+
 
 
 @router.get("/verify-link/{token}", response_model=AccessLinkDetailResponse)
