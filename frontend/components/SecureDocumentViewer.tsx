@@ -26,8 +26,24 @@ export default function SecureDocumentViewer({
   const [currentPage, setCurrentPage] = useState(1);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [autoFullscreenTried, setAutoFullscreenTried] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const documentRef = useRef<HTMLDivElement>(null);
+
+  const setDocumentBlurState = useCallback((shouldBlur: boolean) => {
+    if (!documentRef.current) return;
+    documentRef.current.classList.toggle("blur-xl", shouldBlur);
+    documentRef.current.classList.toggle("pointer-events-none", shouldBlur);
+  }, []);
+
+  const getFullscreenState = useCallback(() => {
+    return (
+      document.fullscreenElement !== null ||
+      (document as any).webkitFullscreenElement !== null ||
+      (document as any).mozFullScreenElement !== null ||
+      (document as any).msFullscreenElement !== null
+    );
+  }, []);
 
   // Disable copy-paste and devtools
   useEffect(() => {
@@ -101,44 +117,56 @@ export default function SecureDocumentViewer({
   // Handle fullscreen changes
   useEffect(() => {
     const handleFullscreenChange = () => {
-      const isCurrentlyFullscreen =
-        document.fullscreenElement !== null ||
-        (document as any).webkitFullscreenElement !== null ||
-        (document as any).mozFullScreenElement !== null ||
-        (document as any).msFullscreenElement !== null;
+      const isCurrentlyFullscreen = getFullscreenState();
 
       setIsFullscreen(isCurrentlyFullscreen);
-
-      if (!isCurrentlyFullscreen && documentRef.current) {
-        // Blur document when exiting fullscreen (desktop)
-        if (!isMobile) {
-          documentRef.current.classList.add("blur-xl", "pointer-events-none");
-        }
-      } else if (documentRef.current) {
-        // Remove blur when entering fullscreen
-        documentRef.current.classList.remove("blur-xl", "pointer-events-none");
-      }
+      setDocumentBlurState(!isMobile && !isCurrentlyFullscreen);
     };
+
+    // Sync state immediately on mount.
+    handleFullscreenChange();
 
     document.addEventListener("fullscreenchange", handleFullscreenChange);
     document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
     document.addEventListener("mozfullscreenchange", handleFullscreenChange);
-    document.addEventListener("MSFullscreenChange", handleFullscreenChange);
+    document.addEventListener("msfullscreenchange", handleFullscreenChange);
 
     return () => {
       document.removeEventListener("fullscreenchange", handleFullscreenChange);
       document.removeEventListener("webkitfullscreenchange", handleFullscreenChange);
       document.removeEventListener("mozfullscreenchange", handleFullscreenChange);
-      document.removeEventListener("MSFullscreenChange", handleFullscreenChange);
+      document.removeEventListener("msfullscreenchange", handleFullscreenChange);
     };
-  }, [isMobile]);
+  }, [getFullscreenState, isMobile, setDocumentBlurState]);
 
   // Force fullscreen blur state on mount
   useEffect(() => {
-    if (!isFullscreen && !isMobile && documentRef.current) {
-      documentRef.current.classList.add("blur-xl", "pointer-events-none");
+    setDocumentBlurState(!isFullscreen && !isMobile);
+  }, [isFullscreen, isMobile, setDocumentBlurState]);
+
+  // Attempt fullscreen automatically after PDF loads on desktop.
+  useEffect(() => {
+    if (isMobile || isFullscreen || autoFullscreenTried || !numPages || !containerRef.current) {
+      return;
     }
-  }, [isFullscreen, isMobile]);
+
+    const tryAutoFullscreen = async () => {
+      setAutoFullscreenTried(true);
+      try {
+        if (containerRef.current?.requestFullscreen) {
+          await containerRef.current.requestFullscreen();
+          setIsFullscreen(true);
+          setDocumentBlurState(false);
+        }
+      } catch {
+        // Browser may block non-user initiated fullscreen requests.
+        setDocumentBlurState(true);
+        toast("Click the fullscreen button to unlock document view", { icon: "🔒" });
+      }
+    };
+
+    void tryAutoFullscreen();
+  }, [autoFullscreenTried, isFullscreen, isMobile, numPages, setDocumentBlurState]);
 
   const handleFullscreen = useCallback(async () => {
     if (!containerRef.current) return;
@@ -156,9 +184,7 @@ export default function SecureDocumentViewer({
           await (containerRef.current as any).msRequestFullscreen();
         }
         setIsFullscreen(true);
-        if (documentRef.current) {
-          documentRef.current.classList.remove("blur-xl", "pointer-events-none");
-        }
+        setDocumentBlurState(false);
       } else {
         // Exit fullscreen
         if (document.fullscreenElement) {
@@ -171,6 +197,9 @@ export default function SecureDocumentViewer({
           await (document as any).msExitFullscreen?.();
         }
         setIsFullscreen(false);
+        if (!isMobile) {
+          setDocumentBlurState(true);
+        }
       }
     } catch (error) {
       console.error("Fullscreen error:", error);
@@ -182,11 +211,11 @@ export default function SecureDocumentViewer({
         documentRef.current.style.width = "100vw";
         documentRef.current.style.height = "100vh";
         documentRef.current.style.zIndex = "9999";
-        documentRef.current.classList.remove("blur-xl", "pointer-events-none");
+        setDocumentBlurState(false);
         setIsFullscreen(true);
       }
     }
-  }, [isFullscreen, isMobile]);
+  }, [isFullscreen, isMobile, setDocumentBlurState]);
 
   // Mobile fallback: use fixed positioning instead of Fullscreen API
   const handleMobileViewDocument = useCallback(() => {
@@ -197,10 +226,10 @@ export default function SecureDocumentViewer({
       documentRef.current.style.height = "100vh";
       documentRef.current.style.zIndex = "9999";
       documentRef.current.style.overflow = "auto";
-      documentRef.current.classList.remove("blur-xl", "pointer-events-none");
+      setDocumentBlurState(false);
       setIsFullscreen(true);
     }
-  }, []);
+  }, [setDocumentBlurState]);
 
   const handleMobileExit = useCallback(() => {
     if (documentRef.current) {
@@ -210,10 +239,10 @@ export default function SecureDocumentViewer({
       documentRef.current.style.height = "auto";
       documentRef.current.style.zIndex = "auto";
       documentRef.current.style.overflow = "visible";
-      documentRef.current.classList.add("blur-xl", "pointer-events-none");
+      setDocumentBlurState(true);
       setIsFullscreen(false);
     }
-  }, []);
+  }, [setDocumentBlurState]);
 
   const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
     setNumPages(numPages);

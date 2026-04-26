@@ -3,12 +3,19 @@
 import { useState } from "react";
 import GenerateLinkForm from "@/components/GenerateLinkForm";
 import LinksTable from "@/components/LinksTable";
-import { Lock } from "lucide-react";
+import { Lock, LogOut } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export default function AdminDashboard() {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [activeTab, setActiveTab] = useState("generate");
+  const router = useRouter();
+
+  const handleLogout = () => {
+    localStorage.removeItem("admin_token");
+    router.push("/admin/login");
+  };
 
   const handleFormSuccess = () => {
     setRefreshTrigger((prev) => prev + 1);
@@ -27,12 +34,21 @@ export default function AdminDashboard() {
                 Admin Dashboard
               </h1>
             </div>
-            <Link
-              href="/"
-              className="text-dark-text-secondary hover:text-accent-bronze transition"
-            >
-              ← Back Home
-            </Link>
+            <div className="flex items-center gap-4">
+              <Link
+                href="/"
+                className="text-dark-text-secondary hover:text-accent-bronze transition text-sm"
+              >
+                ← Back Home
+              </Link>
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-2 bg-dark-bg text-dark-text-secondary px-3 py-1.5 rounded-[2px] border border-dark-text-secondary border-opacity-30 hover:text-accent-bronze hover:border-accent-bronze transition text-sm"
+              >
+                <LogOut className="w-4 h-4" />
+                Logout
+              </button>
+            </div>
           </div>
           <p className="text-dark-text-secondary mt-2">
             Manage secure document access links

@@ -237,15 +237,19 @@ export default function GenerateLinkForm({ onSuccess }: { onSuccess: () => void 
           <label className="block text-dark-text text-sm font-medium">
             Expiration Date & Time
           </label>
-          <label className="flex items-center text-xs text-dark-text-secondary cursor-pointer">
-            <input
-              type="checkbox"
-              checked={defaultThreeHours}
-              onChange={(e) => setDefaultThreeHours(e.target.checked)}
-              className="mr-2 rounded border-dark-text-secondary bg-dark-bg focus:ring-accent-bronze"
-            />
-            Default 3 hours from now
-          </label>
+          <div 
+            className="flex items-center cursor-pointer"
+            onClick={() => setDefaultThreeHours(!defaultThreeHours)}
+          >
+            <div 
+              className={`w-9 h-5 rounded-full flex items-center p-1 transition-colors ${defaultThreeHours ? 'bg-accent-bronze' : 'bg-dark-text-secondary'}`}
+            >
+              <div 
+                className={`bg-dark-bg w-3 h-3 rounded-full shadow-sm transform transition-transform ${defaultThreeHours ? 'translate-x-4' : ''}`} 
+              />
+            </div>
+            <span className="ml-2 text-xs text-dark-text-secondary">Default 3 hours</span>
+          </div>
         </div>
         <input
           type="datetime-local"

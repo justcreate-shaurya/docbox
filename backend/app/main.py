@@ -13,11 +13,24 @@ try:
 except Exception as e:
     print(f"Warning: Could not create database tables: {e}")
 
+from contextlib import asynccontextmanager
+from app.tasks import cleanup_expired_links_task
+import asyncio
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Start background cleanup task
+    cleanup_task = asyncio.create_task(cleanup_expired_links_task())
+    yield
+    # Cleanup task will be cancelled when app shuts down
+    cleanup_task.cancel()
+
 # Initialize FastAPI app
 app = FastAPI(
     title=API_TITLE,
     version=API_VERSION,
-    description="Secure Virtual Data Room (VDR) API"
+    description="Secure Virtual Data Room API",
+    lifespan=lifespan
 )
 
 # CORS middleware

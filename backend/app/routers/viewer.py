@@ -8,8 +8,44 @@ from app.core.database import get_db
 from app.models import AccessLink, Document
 from app.schemas.schemas import NDAAcceptRequest, NDAAcceptResponse, AccessLinkDetailResponse
 from app.core.config import SUPABASE_URL, SUPABASE_KEY, SUPABASE_BUCKET
+from app.core.storage import delete_document_asset
 
 router = APIRouter(prefix="/api/viewer", tags=["viewer"])
+ 
+ 
+def _check_and_auto_revoke(link: AccessLink, db: Session) -> bool:
+    """
+    Checks if a link should be revoked (expired or max views).
+    If so, revokes it and deletes the document asset if no other active links exist.
+    Returns True if the link was revoked.
+    """
+    if link.is_revoked:
+        return True
+        
+    now = datetime.utcnow()
+    is_expired = link.expires_at < now
+    is_max_views = link.current_views >= link.max_views
+    
+    if is_expired or is_max_views:
+        # Only delete asset if no other active sibling links
+        active_sibling_links = (
+            db.query(AccessLink)
+            .filter(
+                AccessLink.document_id == link.document_id,
+                AccessLink.id != link.id,
+                AccessLink.is_revoked == False,
+            )
+            .count()
+        )
+        
+        if active_sibling_links == 0 and link.document:
+            delete_document_asset(link.document.file_path)
+            
+        link.is_revoked = True
+        db.commit()
+        return True
+        
+    return False
 
 
 @router.get("/verify-link/{token}", response_model=AccessLinkDetailResponse)
@@ -22,14 +58,8 @@ async def verify_link(token: str, db: Session = Depends(get_db)):
     if not link:
         raise HTTPException(status_code=404, detail="Link not found")
 
-    if link.is_revoked:
-        raise HTTPException(status_code=403, detail="This link has been revoked")
-
-    if link.expires_at < datetime.utcnow():
-        raise HTTPException(status_code=403, detail="This link has expired")
-
-    if link.current_views >= link.max_views:
-        raise HTTPException(status_code=403, detail="Maximum views exceeded")
+    if _check_and_auto_revoke(link, db):
+        raise HTTPException(status_code=403, detail="This link has expired or reached maximum views")
 
     return AccessLinkDetailResponse(
         token=link.token,
@@ -55,14 +85,8 @@ async def accept_nda(token: str, request: NDAAcceptRequest, db: Session = Depend
     if request.user_name.strip().lower() != link.allowed_name.strip().lower():
         raise HTTPException(status_code=403, detail="Name does not match")
 
-    if link.is_revoked:
-        raise HTTPException(status_code=403, detail="This link has been revoked")
-
-    if link.expires_at < datetime.utcnow():
-        raise HTTPException(status_code=403, detail="This link has expired")
-
-    if link.current_views >= link.max_views:
-        raise HTTPException(status_code=403, detail="Maximum views exceeded")
+    if _check_and_auto_revoke(link, db):
+        raise HTTPException(status_code=403, detail="This link has expired or reached maximum views")
 
     link.current_views += 1
     db.commit()
@@ -87,7 +111,7 @@ async def get_document(token: str, db: Session = Depends(get_db)):
     if not link:
         raise HTTPException(status_code=404, detail="Link not found")
 
-    if link.is_revoked or link.expires_at < datetime.utcnow():
+    if _check_and_auto_revoke(link, db):
         raise HTTPException(status_code=403, detail="Access denied")
 
     document = link.document

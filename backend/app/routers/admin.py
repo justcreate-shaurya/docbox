@@ -10,9 +10,12 @@ from app.core.config import UPLOAD_DIR, ADMIN_USERNAME, ADMIN_PASSWORD, SUPABASE
 from app.models import Document, AccessLink
 from app.schemas.schemas import GenerateLinkDirectRequest, GenerateLinkResponse, AccessLinkResponse
 from app.core.security import create_access_token, get_current_admin
+from app.core.storage import delete_document_asset
 from fastapi.security import OAuth2PasswordRequestForm
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
+
+
 
 
 def _create_link_record(
@@ -89,7 +92,7 @@ async def generate_link(
 
         if SUPABASE_URL and SUPABASE_KEY:
             # Upload to Supabase Storage
-            from supabase import create_client
+            from supabase import create_client  # type: ignore[import-not-found]
             sb = create_client(SUPABASE_URL, SUPABASE_KEY)
             storage_path = f"uploads/{unique_filename}"
             sb.storage.from_(SUPABASE_BUCKET).upload(
@@ -191,7 +194,27 @@ async def revoke_link(link_id: int, db: Session = Depends(get_db), admin: str = 
     if not link:
         raise HTTPException(status_code=404, detail="Link not found")
 
-    link.is_revoked = True
-    db.commit()
+    if link.is_revoked:
+        return {"message": "Link already revoked"}
 
-    return {"message": "Link revoked successfully"}
+    try:
+        # Only delete the underlying asset when no other active links use this document.
+        active_sibling_links = (
+            db.query(AccessLink)
+            .filter(
+                AccessLink.document_id == link.document_id,
+                AccessLink.id != link.id,
+                AccessLink.is_revoked == False,
+            )
+            .count()
+        )
+
+        if active_sibling_links == 0 and link.document:
+            delete_document_asset(link.document.file_path)
+
+        link.is_revoked = True
+        db.commit()
+        return {"message": "Link revoked and file deleted successfully" if active_sibling_links == 0 else "Link revoked successfully"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(e))

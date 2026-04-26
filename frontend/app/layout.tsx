@@ -3,7 +3,7 @@ import { Toaster } from "react-hot-toast";
 import "../styles/globals.css";
 
 export const metadata: Metadata = {
-  title: "DocBox VDR",
+  title: "DocBox",
   description: "Secure Virtual Data Room",
 };
 
