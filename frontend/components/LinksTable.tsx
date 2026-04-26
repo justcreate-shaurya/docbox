@@ -64,6 +64,21 @@ export default function LinksTable({ refreshTrigger }: { refreshTrigger: number 
     }
   };
 
+  const handleDelete = async (linkId: number) => {
+    if (!window.confirm("Are you sure you want to remove this link from the list?")) {
+      return;
+    }
+
+    try {
+      await adminAPI.deleteLink(linkId);
+      toast.success("Link removed from list");
+      fetchLinks();
+    } catch (error) {
+      console.error("Error deleting link:", error);
+      toast.error("Failed to remove link");
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -140,12 +155,11 @@ export default function LinksTable({ refreshTrigger }: { refreshTrigger: number 
                     )}
                   </button>
                   <button
-                    onClick={() => handleRevoke(link.id)}
-                    disabled={link.is_revoked}
-                    className="p-2 hover:bg-dark-secondary rounded-[2px] transition disabled:opacity-50"
-                    title="Revoke link"
+                    onClick={() => link.is_revoked ? handleDelete(link.id) : handleRevoke(link.id)}
+                    className="p-2 hover:bg-dark-secondary rounded-[2px] transition"
+                    title={link.is_revoked ? "Remove from list" : "Revoke link"}
                   >
-                    <Trash2 className="w-4 h-4 text-red-400" />
+                    <Trash2 className={`w-4 h-4 ${link.is_revoked ? "text-red-500" : "text-red-400"}`} />
                   </button>
                 </div>
               </td>

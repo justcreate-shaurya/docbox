@@ -168,7 +168,7 @@ async def get_all_links(db: Session = Depends(get_db), admin: str = Depends(get_
     """
     Get all generated access links for the admin dashboard.
     """
-    links = db.query(AccessLink).all()
+    links = db.query(AccessLink).order_by(AccessLink.created_at.asc()).all()
 
     result = []
     for link in links:
@@ -218,3 +218,38 @@ async def revoke_link(link_id: int, db: Session = Depends(get_db), admin: str = 
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.delete("/links/{link_id}")
+async def delete_link(link_id: int, db: Session = Depends(get_db), admin: str = Depends(get_current_admin)):
+    """
+    Delete an access link record from the database.
+    """
+    link = db.query(AccessLink).filter(AccessLink.id == link_id).first()
+
+    if not link:
+        raise HTTPException(status_code=404, detail="Link not found")
+
+    try:
+        # If not revoked, perform the same cleanup logic as revoke
+        if not link.is_revoked:
+            active_sibling_links = (
+                db.query(AccessLink)
+                .filter(
+                    AccessLink.document_id == link.document_id,
+                    AccessLink.id != link.id,
+                    AccessLink.is_revoked == False,
+                )
+                .count()
+            )
+
+            if active_sibling_links == 0 and link.document:
+                delete_document_asset(link.document.file_path)
+
+        db.delete(link)
+        db.commit()
+        return {"message": "Link deleted successfully"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+

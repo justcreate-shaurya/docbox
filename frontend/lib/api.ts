@@ -63,6 +63,11 @@ export const adminAPI = {
     const response = await apiClient.post(`/api/admin/links/${linkId}/revoke`);
     return response.data;
   },
+
+  deleteLink: async (linkId: number) => {
+    const response = await apiClient.delete(`/api/admin/links/${linkId}`);
+    return response.data;
+  },
 };
 
 export const uploadPdfToSupabase = async (file: File) => {
