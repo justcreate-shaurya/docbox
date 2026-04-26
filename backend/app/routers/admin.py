@@ -209,12 +209,19 @@ async def revoke_link(link_id: int, db: Session = Depends(get_db), admin: str = 
             .count()
         )
 
+        print(f"DEBUG: Revoking link {link_id}. Active sibling links: {active_sibling_links}")
+
         if active_sibling_links == 0 and link.document:
+            print(f"DEBUG: Last active link for document {link.document_id} revoked. Deleting asset: {link.document.file_path}")
             delete_document_asset(link.document.file_path)
+        elif active_sibling_links > 0:
+            print(f"DEBUG: Skipping asset deletion because {active_sibling_links} active sibling links remain.")
+        elif not link.document:
+            print("DEBUG: link.document is None, cannot delete asset.")
 
         link.is_revoked = True
         db.commit()
-        return {"message": "Link revoked and file deleted successfully" if active_sibling_links == 0 else "Link revoked successfully"}
+        return {"message": "Link revoked and file deleted successfully" if (active_sibling_links == 0 and link.document) else "Link revoked successfully"}
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=400, detail=str(e))
@@ -243,13 +250,18 @@ async def delete_link(link_id: int, db: Session = Depends(get_db), admin: str = 
                 .count()
             )
 
+            print(f"DEBUG: Deleting link {link_id} (not revoked yet). Active sibling links: {active_sibling_links}")
+
             if active_sibling_links == 0 and link.document:
+                print(f"DEBUG: Last active link for document {link.document_id} being deleted. Deleting asset: {link.document.file_path}")
                 delete_document_asset(link.document.file_path)
+        else:
+            print(f"DEBUG: Deleting link {link_id} (already revoked). Asset should have been deleted during revocation.")
 
         db.delete(link)
         db.commit()
         return {"message": "Link deleted successfully"}
+
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=400, detail=str(e))
-
