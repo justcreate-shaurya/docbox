@@ -1,14 +1,9 @@
 {
   "version": 2,
-  "buildCommand": "pip install -r requirements.txt",
-  "outputDirectory": ".",
   "builds": [
     {
       "src": "api/index.py",
-      "use": "@vercel/python@3.1.0",
-      "config": {
-        "maxLambdaSize": "50mb"
-      }
+      "use": "@vercel/python@3.1.0"
     }
   ],
   "routes": [
