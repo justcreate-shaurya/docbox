@@ -23,7 +23,7 @@ export default function AdminLogin() {
       formData.append("password", password);
 
       const response = await adminAPI.login(formData);
-      
+
       if (response.access_token) {
         localStorage.setItem("admin_token", response.access_token);
         toast.success("Login successful");
@@ -38,7 +38,7 @@ export default function AdminLogin() {
 
   return (
     <div className="min-h-screen bg-dark-bg flex items-center justify-center p-4">
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
@@ -48,7 +48,7 @@ export default function AdminLogin() {
           <Lock className="w-12 h-12 text-accent-bronze mb-4" />
           <h1 className="text-2xl font-bold text-dark-text">Admin Login</h1>
           <p className="text-dark-text-secondary text-sm text-center mt-2">
-            Enter your credentials to access the DocBox VDR dashboard
+            Enter your credentials to access the DocBox dashboard
           </p>
         </div>
 
