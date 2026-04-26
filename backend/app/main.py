@@ -50,6 +50,12 @@ if os.path.exists("./uploads"):
     app.mount("/uploads", StaticFiles(directory="./uploads"), name="uploads")
 
 
+@app.get("/favicon.ico")
+async def favicon():
+    """Return a minimal favicon to prevent 404s"""
+    return {"status": "ok"}
+
+
 @app.get("/health")
 def health_check():
     return {"status": "ok", "version": API_VERSION}
