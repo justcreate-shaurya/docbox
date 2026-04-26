@@ -7,8 +7,11 @@ from app.core.config import CORS_ORIGINS, API_TITLE, API_VERSION
 from app.core.database import Base, engine
 from app.routers import admin, viewer
 
-# Create database tables
-Base.metadata.create_all(bind=engine)
+# Create database tables (with error handling for Vercel)
+try:
+    Base.metadata.create_all(bind=engine)
+except Exception as e:
+    print(f"Warning: Could not create database tables: {e}")
 
 # Initialize FastAPI app
 app = FastAPI(

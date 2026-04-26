@@ -1,9 +1,13 @@
 import sys
 import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from mangum import Mangum
-from app.main import app
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# Vercel serverless handler
-handler = Mangum(app, lifespan="off")
+try:
+    from mangum import Mangum
+    from app.main import app
+    handler = Mangum(app, lifespan="off")
+except ImportError as e:
+    print(f"Import error: {e}")
+    raise
