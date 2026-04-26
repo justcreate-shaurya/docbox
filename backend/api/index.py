@@ -2,24 +2,30 @@ import sys
 import os
 
 print("=== STARTING API HANDLER ===")
-print(f"Python version: {sys.version}")
-print(f"Working directory: {os.getcwd()}")
+
+# Create a fallback handler in case imports fail
+async def fallback_app(scope, receive, send):
+    await send({
+        'type': 'http.response.start',
+        'status': 500,
+        'headers': [[b'content-type', b'application/json']],
+    })
+    await send({
+        'type': 'http.response.body',
+        'body': b'{"error": "Application failed to initialize"}',
+    })
+
+from mangum import Mangum
+handler = Mangum(fallback_app, lifespan="off")
 
 try:
-    print("1. Importing mangum...")
-    from mangum import Mangum
-    print("✓ Mangum imported")
-    
-    print("2. Importing app.main...")
+    print("Importing app.main...")
     from app.main import app
-    print("✓ app.main imported")
-    
-    print("3. Creating handler...")
+    print("✓ Successfully imported app.main")
     handler = Mangum(app, lifespan="off")
-    print("✓ Handler created successfully")
-    
+    print("✓ Handler ready")
 except Exception as e:
-    print(f"✗ ERROR: {e}")
+    print(f"✗ ERROR during import: {e}")
     import traceback
     traceback.print_exc()
-    raise
+    # Handler stays as fallback
