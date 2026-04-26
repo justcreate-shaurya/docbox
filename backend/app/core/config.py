@@ -1,5 +1,4 @@
 import os
-from datetime import timedelta
 
 # JWT/Security
 SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-in-production")
@@ -20,17 +19,11 @@ UPLOAD_DIR = os.getenv("UPLOAD_DIR", "./uploads")
 MAX_UPLOAD_SIZE = 100 * 1024 * 1024  # 100MB
 
 # CORS
-cors_origins_str = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:8000")
-CORS_ORIGINS = [origin.strip() for origin in cors_origins_str.split(",")]
-print(f"CORS Origins configured: {CORS_ORIGINS}")
+CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:8000").split(",")
 
 # API
 API_TITLE = "VDR API"
 API_VERSION = "1.0.0"
 
-# Ensure upload directory exists (only in local dev, not in serverless)
-try:
-    if not os.getenv("VERCEL"):  # Skip on Vercel
-        os.makedirs(UPLOAD_DIR, exist_ok=True)
-except Exception as e:
-    print(f"Warning: Could not create upload directory: {e}")
+# Database
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./docbox.db")
