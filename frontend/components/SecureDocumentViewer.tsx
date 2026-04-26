@@ -30,18 +30,15 @@ export default function SecureDocumentViewer({
   const containerRef = useRef<HTMLDivElement>(null);
   const documentRef = useRef<HTMLDivElement>(null);
 
-  const setDocumentBlurState = useCallback((shouldBlur: boolean) => {
-    if (!documentRef.current) return;
-    documentRef.current.classList.toggle("blur-xl", shouldBlur);
-    documentRef.current.classList.toggle("pointer-events-none", shouldBlur);
-  }, []);
+  // The blur state is now derived from isFullscreen and isMobile in the JSX
 
   const getFullscreenState = useCallback(() => {
-    return (
-      document.fullscreenElement !== null ||
-      (document as any).webkitFullscreenElement !== null ||
-      (document as any).mozFullScreenElement !== null ||
-      (document as any).msFullscreenElement !== null
+    if (typeof document === "undefined") return false;
+    return !!(
+      document.fullscreenElement ||
+      (document as any).webkitFullscreenElement ||
+      (document as any).mozFullScreenElement ||
+      (document as any).msFullscreenElement
     );
   }, []);
 
@@ -117,10 +114,7 @@ export default function SecureDocumentViewer({
   // Handle fullscreen changes
   useEffect(() => {
     const handleFullscreenChange = () => {
-      const isCurrentlyFullscreen = getFullscreenState();
-
-      setIsFullscreen(isCurrentlyFullscreen);
-      setDocumentBlurState(!isMobile && !isCurrentlyFullscreen);
+      setIsFullscreen(getFullscreenState());
     };
 
     // Sync state immediately on mount.
@@ -129,22 +123,18 @@ export default function SecureDocumentViewer({
     document.addEventListener("fullscreenchange", handleFullscreenChange);
     document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
     document.addEventListener("mozfullscreenchange", handleFullscreenChange);
-    document.addEventListener("msfullscreenchange", handleFullscreenChange);
+    document.addEventListener("MSFullscreenChange", handleFullscreenChange);
 
     return () => {
       document.removeEventListener("fullscreenchange", handleFullscreenChange);
       document.removeEventListener("webkitfullscreenchange", handleFullscreenChange);
       document.removeEventListener("mozfullscreenchange", handleFullscreenChange);
-      document.removeEventListener("msfullscreenchange", handleFullscreenChange);
+      document.removeEventListener("MSFullscreenChange", handleFullscreenChange);
     };
-  }, [getFullscreenState, isMobile, setDocumentBlurState]);
+  }, [getFullscreenState]);
 
-  // Force fullscreen blur state on mount
-  useEffect(() => {
-    setDocumentBlurState(!isFullscreen && !isMobile);
-  }, [isFullscreen, isMobile, setDocumentBlurState]);
+  // Blur state logic is now handled in the render phase
 
-  // Attempt fullscreen automatically after PDF loads on desktop.
   useEffect(() => {
     if (isMobile || isFullscreen || autoFullscreenTried || !numPages || !containerRef.current) {
       return;
@@ -155,94 +145,59 @@ export default function SecureDocumentViewer({
       try {
         if (containerRef.current?.requestFullscreen) {
           await containerRef.current.requestFullscreen();
-          setIsFullscreen(true);
-          setDocumentBlurState(false);
+        } else if ((containerRef.current as any).webkitRequestFullscreen) {
+          await (containerRef.current as any).webkitRequestFullscreen();
         }
       } catch {
         // Browser may block non-user initiated fullscreen requests.
-        setDocumentBlurState(true);
         toast("Click the fullscreen button to unlock document view", { icon: "🔒" });
       }
     };
 
     void tryAutoFullscreen();
-  }, [autoFullscreenTried, isFullscreen, isMobile, numPages, setDocumentBlurState]);
+  }, [autoFullscreenTried, isFullscreen, isMobile, numPages]);
 
   const handleFullscreen = useCallback(async () => {
     if (!containerRef.current) return;
 
     try {
-      if (!isFullscreen) {
-        // Request fullscreen
-        if (containerRef.current.requestFullscreen) {
-          await containerRef.current.requestFullscreen();
-        } else if ((containerRef.current as any).webkitRequestFullscreen) {
-          await (containerRef.current as any).webkitRequestFullscreen();
-        } else if ((containerRef.current as any).mozRequestFullScreen) {
-          await (containerRef.current as any).mozRequestFullScreen();
-        } else if ((containerRef.current as any).msRequestFullscreen) {
-          await (containerRef.current as any).msRequestFullscreen();
+      if (!getFullscreenState()) {
+        const el = containerRef.current as any;
+        if (el.requestFullscreen) {
+          await el.requestFullscreen();
+        } else if (el.webkitRequestFullscreen) {
+          await el.webkitRequestFullscreen();
+        } else if (el.mozRequestFullScreen) {
+          await el.mozRequestFullScreen();
+        } else if (el.msRequestFullscreen) {
+          await el.msRequestFullscreen();
         }
-        setIsFullscreen(true);
-        setDocumentBlurState(false);
       } else {
-        // Exit fullscreen
-        if (document.fullscreenElement) {
-          await document.exitFullscreen();
-        } else if ((document as any).webkitFullscreenElement) {
-          await (document as any).webkitExitFullscreen?.();
-        } else if ((document as any).mozFullScreenElement) {
-          await (document as any).mozCancelFullScreen?.();
-        } else if ((document as any).msFullscreenElement) {
-          await (document as any).msExitFullscreen?.();
-        }
-        setIsFullscreen(false);
-        if (!isMobile) {
-          setDocumentBlurState(true);
+        const doc = document as any;
+        if (doc.exitFullscreen) {
+          await doc.exitFullscreen();
+        } else if (doc.webkitExitFullscreen) {
+          await doc.webkitExitFullscreen();
+        } else if (doc.mozCancelFullScreen) {
+          await doc.mozCancelFullScreen();
+        } else if (doc.msExitFullscreen) {
+          await doc.msExitFullscreen();
         }
       }
     } catch (error) {
       console.error("Fullscreen error:", error);
-
-      // Fallback: use fixed positioning for mobile
-      if (isMobile && documentRef.current && !isFullscreen) {
-        documentRef.current.style.position = "fixed";
-        documentRef.current.style.inset = "0";
-        documentRef.current.style.width = "100vw";
-        documentRef.current.style.height = "100vh";
-        documentRef.current.style.zIndex = "9999";
-        setDocumentBlurState(false);
-        setIsFullscreen(true);
-      }
+      toast.error("Fullscreen request failed");
     }
-  }, [isFullscreen, isMobile, setDocumentBlurState]);
+  }, [getFullscreenState]);
 
   // Mobile fallback: use fixed positioning instead of Fullscreen API
   const handleMobileViewDocument = useCallback(() => {
-    if (documentRef.current) {
-      documentRef.current.style.position = "fixed";
-      documentRef.current.style.inset = "0";
-      documentRef.current.style.width = "100vw";
-      documentRef.current.style.height = "100vh";
-      documentRef.current.style.zIndex = "9999";
-      documentRef.current.style.overflow = "auto";
-      setDocumentBlurState(false);
-      setIsFullscreen(true);
-    }
-  }, [setDocumentBlurState]);
+    setIsFullscreen(true);
+  }, []);
 
   const handleMobileExit = useCallback(() => {
-    if (documentRef.current) {
-      documentRef.current.style.position = "relative";
-      documentRef.current.style.inset = "auto";
-      documentRef.current.style.width = "100%";
-      documentRef.current.style.height = "auto";
-      documentRef.current.style.zIndex = "auto";
-      documentRef.current.style.overflow = "visible";
-      setDocumentBlurState(true);
-      setIsFullscreen(false);
-    }
-  }, [setDocumentBlurState]);
+    setIsFullscreen(false);
+  }, []);
 
   const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
     setNumPages(numPages);
@@ -259,7 +214,7 @@ export default function SecureDocumentViewer({
   return (
     <div
       ref={containerRef}
-      className={`w-full bg-dark-bg ${isFullscreen ? "fullscreen-container" : ""}`}
+      className={`w-full bg-dark-bg ${isFullscreen ? (isMobile ? "fixed inset-0 z-[9999] overflow-auto" : "fullscreen-container") : "relative"}`}
     >
       {/* Toolbar */}
       <div className="bg-dark-secondary border-b border-dark-text-secondary sticky top-0 z-40 flex items-center justify-between p-4">
@@ -325,9 +280,11 @@ export default function SecureDocumentViewer({
       {/* Document Container */}
       <div
         ref={documentRef}
-        className="flex justify-center bg-dark-bg overflow-auto hide-scrollbar"
+        className={`flex justify-center bg-dark-bg overflow-auto hide-scrollbar transition-all duration-500 ${
+          !isFullscreen && !isMobile ? "blur-xl pointer-events-none scale-95" : "blur-0"
+        }`}
         style={{
-          maxHeight: isFullscreen && !isMobile ? "calc(100vh)" : "600px",
+          maxHeight: isFullscreen && !isMobile ? "calc(100vh - 70px)" : "600px",
         }}
       >
         <Document

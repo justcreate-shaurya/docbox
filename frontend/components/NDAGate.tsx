@@ -33,6 +33,23 @@ export default function NDAGate({
 
     setAccepted(true);
 
+    // Attempt to enter fullscreen immediately to capture user gesture.
+    // This is the only way to satisfy browser security requirements for auto-fullscreen.
+    try {
+      const docEl = document.documentElement as any;
+      if (docEl.requestFullscreen) {
+        await docEl.requestFullscreen();
+      } else if (docEl.webkitRequestFullscreen) {
+        await docEl.webkitRequestFullscreen();
+      } else if (docEl.mozRequestFullScreen) {
+        await docEl.mozRequestFullScreen();
+      } else if (docEl.msRequestFullscreen) {
+        await docEl.msRequestFullscreen();
+      }
+    } catch (err) {
+      console.warn("Auto-fullscreen on accept failed:", err);
+    }
+
     try {
       await onAccept(userName);
     } catch (error) {
