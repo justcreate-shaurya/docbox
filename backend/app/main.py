@@ -3,14 +3,22 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import os
 
+print("Starting app initialization...")
+
 from app.core.config import CORS_ORIGINS, API_TITLE, API_VERSION, DATABASE_URL
+print(f"✓ Loaded config. DATABASE_URL set: {bool(DATABASE_URL)}")
+
 from app.core.database import Base, engine
+print("✓ Loaded database")
+
 from app.routers import admin, viewer
+print("✓ Loaded routers")
 
 # Only create database tables if using PostgreSQL (not SQLite in serverless)
 if DATABASE_URL and not DATABASE_URL.startswith("sqlite"):
     try:
         Base.metadata.create_all(bind=engine)
+        print("✓ Database tables created")
     except Exception as e:
         print(f"Warning: Could not create database tables: {e}")
 else:
@@ -22,6 +30,7 @@ app = FastAPI(
     version=API_VERSION,
     description="Secure Virtual Data Room (VDR) API"
 )
+print(f"✓ FastAPI app initialized with CORS origins: {CORS_ORIGINS}")
 
 # CORS middleware
 app.add_middleware(

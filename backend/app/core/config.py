@@ -20,7 +20,9 @@ UPLOAD_DIR = os.getenv("UPLOAD_DIR", "./uploads")
 MAX_UPLOAD_SIZE = 100 * 1024 * 1024  # 100MB
 
 # CORS
-CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:8000").split(",")
+cors_origins_str = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:8000")
+CORS_ORIGINS = [origin.strip() for origin in cors_origins_str.split(",")]
+print(f"CORS Origins configured: {CORS_ORIGINS}")
 
 # API
 API_TITLE = "VDR API"
