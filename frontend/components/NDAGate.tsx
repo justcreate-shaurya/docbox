@@ -100,7 +100,7 @@ export default function NDAGate({
           {/* Security Notice */}
           <div className="mt-8 p-4 bg-dark-bg rounded-[2px]">
             <p className="text-dark-text-secondary text-xs">
-              🔒 This document is protected by security measures including copy
+              This document is protected by security measures including copy
               prevention, fullscreen lock, and view tracking. All access is
               logged.
             </p>

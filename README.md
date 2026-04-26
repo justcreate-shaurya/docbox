@@ -350,37 +350,11 @@ Response: PDF file (application/pdf)
 - For SQLite: Check file permissions on uploads and database directories
 - For PostgreSQL: Verify connection string in `DATABASE_URL`
 
-## Development Tips
-
-### Adding New Features
-1. Add database models in `app/models/models.py`
-2. Create Pydantic schemas in `app/schemas/schemas.py`
-3. Add API endpoints in appropriate routers
-4. Update frontend API client in `lib/api.ts`
-5. Create components and pages as needed
-
-### Testing
-- Backend: Use FastAPI's built-in testing client
-- Frontend: Use Jest with React Testing Library (not included)
-
-## Production Deployment
-
-### Backend (Example: Heroku)
-```bash
-heroku create docbox-vdr-backend
-heroku addons:create heroku-postgresql:standard-0
-git push heroku main
-```
-
-### Frontend (Example: Vercel)
-```bash
-vercel --prod
-```
 
 ## License
 
-© 2024 DocBox VDR. All rights reserved.
+© Shaurya Jain. All rights reserved.
 
 ## Support
 
-For issues or questions, please contact the development team.
+For issues or questions, please contact the me.

@@ -8,10 +8,10 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-dark-bg flex flex-col items-center justify-center px-4">
       {/* Header */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
+        transition={{ duration: 0.4 }}
         className="mb-16 text-center"
       >
         <div className="flex items-center justify-center gap-3 mb-4">
@@ -29,7 +29,7 @@ export default function Home() {
       <div className="grid md:grid-cols-2 gap-12 max-w-2xl w-full">
         {/* Admin Card */}
         <Link href="/admin">
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
@@ -48,7 +48,7 @@ export default function Home() {
         </Link>
 
         {/* Viewer Info Card */}
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.6, delay: 0.4 }}
