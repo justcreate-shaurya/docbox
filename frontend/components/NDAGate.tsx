@@ -27,7 +27,7 @@ export default function NDAGate({
     }
 
     if (userName.trim().toLowerCase() !== allowed_name.trim().toLowerCase()) {
-      toast.error("Your name does not match the allowed recipient");
+      toast.error("Access denied: Name mismatch");
       return;
     }
 
@@ -61,13 +61,6 @@ export default function NDAGate({
             </p>
           </div>
 
-          {/* Recipient Info */}
-          <div className="mb-8 p-4 bg-dark-bg rounded-[2px] border-l-4 border-accent-bronze">
-            <p className="text-dark-text-secondary text-sm mb-1">
-              Authorized Recipient:
-            </p>
-            <p className="text-dark-text font-semibold">{allowed_name}</p>
-          </div>
 
           {/* Name Input */}
           <div className="mb-8">
