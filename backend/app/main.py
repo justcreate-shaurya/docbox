@@ -7,12 +7,11 @@ from app.core.config import CORS_ORIGINS, API_TITLE, API_VERSION, DATABASE_URL
 from app.core.database import Base, engine
 from app.routers import admin, viewer
 
-# Create database tables only for PostgreSQL
-if DATABASE_URL and not DATABASE_URL.startswith("sqlite"):
-    try:
-        Base.metadata.create_all(bind=engine)
-    except Exception:
-        pass
+# Create database tables
+try:
+    Base.metadata.create_all(bind=engine)
+except Exception as e:
+    print(f"Warning: Could not create database tables: {e}")
 
 # Initialize FastAPI app
 app = FastAPI(
