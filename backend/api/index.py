@@ -1,13 +1,15 @@
+from mangum import Mangum
 import sys
 import os
 
-# Add parent directory to path for imports
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Ensure the backend directory is in the path
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+if parent_dir not in sys.path:
+    sys.path.insert(0, parent_dir)
 
-try:
-    from mangum import Mangum
-    from app.main import app
-    handler = Mangum(app, lifespan="off")
-except ImportError as e:
-    print(f"Import error: {e}")
-    raise
+# Now import the app
+from app.main import app as fastapi_app
+
+# Export handler for Vercel
+handler = Mangum(fastapi_app, lifespan="off")

@@ -26,5 +26,9 @@ CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost
 API_TITLE = "VDR API"
 API_VERSION = "1.0.0"
 
-# Ensure upload directory exists
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+# Ensure upload directory exists (only in local dev, not in serverless)
+try:
+    if not os.getenv("VERCEL"):  # Skip on Vercel
+        os.makedirs(UPLOAD_DIR, exist_ok=True)
+except Exception as e:
+    print(f"Warning: Could not create upload directory: {e}")

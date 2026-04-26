@@ -3,15 +3,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import os
 
-from app.core.config import CORS_ORIGINS, API_TITLE, API_VERSION
+from app.core.config import CORS_ORIGINS, API_TITLE, API_VERSION, DATABASE_URL
 from app.core.database import Base, engine
 from app.routers import admin, viewer
 
-# Create database tables (with error handling for Vercel)
-try:
-    Base.metadata.create_all(bind=engine)
-except Exception as e:
-    print(f"Warning: Could not create database tables: {e}")
+# Only create database tables if using PostgreSQL (not SQLite in serverless)
+if DATABASE_URL and not DATABASE_URL.startswith("sqlite"):
+    try:
+        Base.metadata.create_all(bind=engine)
+    except Exception as e:
+        print(f"Warning: Could not create database tables: {e}")
+else:
+    print(f"Skipping table creation. DATABASE_URL: {DATABASE_URL[:50] if DATABASE_URL else 'Not set'}...")
 
 # Initialize FastAPI app
 app = FastAPI(
